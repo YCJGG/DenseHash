@@ -26,6 +26,7 @@ class DatasetProcessingCIFAR_10(Dataset):
             img = self.transform(img)
         label = torch.LongTensor([self.label[index]])
         return img, label, index
+
     def __len__(self):
         return len(self.img_filename)
 

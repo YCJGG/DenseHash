@@ -1,0 +1,15 @@
+# python
+*.pyc
+
+# pickle
+*.pth
+*.pkl
+
+# model snapshot
+snapshots
+snapshots/*
+
+# logs
+*.log
+logs
+logs/*

@@ -4,7 +4,7 @@ import torch.optim as optim
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from torchvision import models
-import os
+import os, time
 import numpy as np
 import pickle
 from datetime import datetime
@@ -22,7 +22,6 @@ def LoadLabel(filename, DATA_DIR):
     return torch.LongTensor(list(map(int, labels)))
 
 def EncodingOnehot(target, nclasses):
-    
     #print(target.shape)
     target_onehot = torch.FloatTensor(target.size(0), nclasses)
 
@@ -60,7 +59,8 @@ def GenerateCode(model, data_loader, num_data, bit, use_gpu):
         data_input, _, data_ind = data
         if use_gpu:
             data_input = Variable(data_input.cuda())
-        else: data_input = Variable(data_input)
+        else:
+	    data_input = Variable(data_input)
         output = model(data_input)
         if use_gpu:
             B[data_ind.numpy(), :] = torch.sign(output.cpu().data).numpy()
@@ -74,6 +74,7 @@ def Logtrick(x, use_gpu):
     else:
         lt = torch.log(1+torch.exp(-torch.abs(x))) + torch.max(x, Variable(torch.FloatTensor([0.])))
     return lt
+
 def Totloss(U, B, Sim, lamda, num_train):
     theta = U.mm(U.t()) / 2
     t1 = (theta*theta).sum() / (num_train * num_train)
@@ -84,9 +85,9 @@ def Totloss(U, B, Sim, lamda, num_train):
 
 def DPSH_algo(bit, param, gpu_ind=0):
     # parameters setting
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_ind)
+    #os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_ind)
 
-    DATA_DIR = 'data/CIFAR-10'
+    DATA_DIR = '/home/kfxw/Development/data/Retrieval/cifar10_retrieval'
     DATABASE_FILE = 'database_img.txt'
     TRAIN_FILE = 'train_img.txt'
     TEST_FILE = 'test_img.txt'
@@ -95,17 +96,20 @@ def DPSH_algo(bit, param, gpu_ind=0):
     TRAIN_LABEL = 'train_label.txt'
     TEST_LABEL = 'test_label.txt'
 
-    batch_size = 100
+    batch_size = 125
     epochs = 150
     learning_rate = 0.05
     weight_decay = 10 ** -5
-    model_name = 'vgg11'
-    #model_name = 'alexnet'
+    model_name = 'vgg16'
     nclasses = 10
     use_gpu = torch.cuda.is_available()
+    iter_size = 5
+    if batch_size < iter_size or batch_size % iter_size != 0:
+	print "Batch size must be an interge multiple of iter size. batch_size vs. iter_size: {%d,%d}".format(batch_size, iter_size)
+	return
+    iter_batch = batch_size / iter_size
 
     filename = param['filename']
-
     lamda = param['lambda']
     param['bit'] = bit
     param['epochs'] = epochs
@@ -131,7 +135,7 @@ def DPSH_algo(bit, param, gpu_ind=0):
     num_database, num_train, num_test = len(dset_database), len(dset_train), len(dset_test)
 
     database_loader = DataLoader(dset_database,
-                              batch_size=batch_size,
+                              batch_size=1,
                               shuffle=False,
                               num_workers=4
                              )
@@ -139,11 +143,11 @@ def DPSH_algo(bit, param, gpu_ind=0):
     train_loader = DataLoader(dset_train,
                               batch_size=batch_size,
                               shuffle=True,
-                              num_workers=4
+                              num_workers=2
                              )
 
     test_loader = DataLoader(dset_test,
-                             batch_size=batch_size,
+                             batch_size=1,
                              shuffle=False,
                              num_workers=4
                              )
@@ -157,11 +161,9 @@ def DPSH_algo(bit, param, gpu_ind=0):
 
     ### training phase
     # parameters setting
-    B = torch.zeros(num_train, bit)
-    U = torch.zeros(num_train, bit)
+    B_all = torch.zeros(num_train, bit)
+    U_all = torch.zeros(num_train, bit)
     train_labels = LoadLabel(TRAIN_LABEL, DATA_DIR)
-    #print(train_labels)    
-
     train_labels_onehot = EncodingOnehot(train_labels, nclasses)
     test_labels = LoadLabel(TEST_LABEL, DATA_DIR)
     test_labels_onehot = EncodingOnehot(test_labels, nclasses)
@@ -175,70 +177,88 @@ def DPSH_algo(bit, param, gpu_ind=0):
     t1_record = []
 
     Sim = CalcSim(train_labels_onehot, train_labels_onehot)
-    file = open('log.log','a')
+    logfile = open('logs/'+filename.split('/')[-1].replace('.pkl','.log'),'a')
+    ## training epoch
     for epoch in range(epochs):
         epoch_loss = 0.0
-        ## training epoch
+        ## training batch
         for iter, traindata in enumerate(train_loader, 0):
+	    timer = time.time()
+	    B = torch.zeros(batch_size, bit)
+	    U = torch.zeros(batch_size, bit)
             train_input, train_label, batch_ind = traindata
             train_label = torch.squeeze(train_label)
+	    # 1 get S matrix within the batch
             if use_gpu:
                 train_label_onehot = EncodingOnehot(train_label, nclasses)
                 train_input, train_label = Variable(train_input.cuda()), Variable(train_label.cuda())
-                S = CalcSim(train_label_onehot, train_labels_onehot)
+                S = CalcSim(train_label_onehot, train_label_onehot)
             else:
                 train_label_onehot = EncodingOnehot(train_label, nclasses)
                 train_input, train_label = Variable(train_input), Variable(train_label)
-                S = CalcSim(train_label_onehot, train_labels_onehot)
+                S = CalcSim(train_label_onehot, train_label_onehot)
 
             model.zero_grad()
-            train_outputs = model(train_input)
+	    # 2 forward for iter_size times to gather outputs
+	    for iter_id in range(iter_size):
+		output_idx = iter_id*iter_batch
+        	train_outputs = model(train_input[output_idx : output_idx+iter_batch, ...])
+                U[output_idx : output_idx+iter_batch, :] = train_outputs.data[...]
+                B[output_idx : output_idx+iter_batch, :] = torch.sign(train_outputs.data[...])
+
+	    # 3 restore U_all and B_all to calculate totloss
             for i, ind in enumerate(batch_ind):
-                U[ind, :] = train_outputs.data[i]
-                B[ind, :] = torch.sign(train_outputs.data[i])
+                U_all[ind, :] = U[i,:]
+                B_all[ind, :] = B[i,:]
 
-            Bbatch = torch.sign(train_outputs)
-            if use_gpu:
-                theta_x = train_outputs.mm(Variable(U.cuda()).t()) / 2
-                logloss = (Variable(S.cuda())*theta_x - Logtrick(theta_x, use_gpu)).sum() \
-                        / (num_train * len(train_label))
-                regterm = (Bbatch-train_outputs).pow(2).sum() / (num_train * len(train_label))
-            else:
-                theta_x = train_outputs.mm(Variable(U).t()) / 2
-                logloss = (Variable(S)*theta_x - Logtrick(theta_x, use_gpu)).sum() \
-                        / (num_train * len(train_label))
-                regterm = (Bbatch-train_outputs).pow(2).sum() / (num_train * len(train_label))
+	    # 4 forward and the backward iter_size times
+	    for iter_id in range(iter_size):
+		output_idx = iter_id*iter_batch
+        	train_outputs = model(train_input[output_idx : output_idx+iter_batch, ...])
+		Bbatch = torch.sign(train_outputs)
+		# calculate loss over the iter_batch
+		S_sub = S[output_idx:output_idx+iter_batch,:]
+                if use_gpu:
+                    theta_x = train_outputs.mm(Variable(U.cuda()).t()) / 2
+                    logloss = (Variable(S_sub.cuda())*theta_x - Logtrick(theta_x, use_gpu)).sum()
+                    regterm = (Bbatch-train_outputs).pow(2).sum()
+                else:
+                    theta_x = train_outputs.mm(Variable(U).t()) / 2
+                    logloss = (Variable(S_sub)*theta_x - Logtrick(theta_x, use_gpu)).sum()
+                    regterm = (Bbatch-train_outputs).pow(2).sum() 
+                loss =  - (logloss + lamda * regterm) / (batch_size ** 2)
+                loss.backward()			# accumulate weight gradients
+		epoch_loss += loss.data[0]	# accumulate epoch loss
 
-            loss =  - logloss + lamda * regterm
-            loss.backward()
+	    # 5 update weights over a batch
             optimizer.step()
-            epoch_loss += loss.data[0]
+	    print '[Iteration %d][%3.2fs/iter]' % (iter, time.time()-timer)
 
-            # print('[Training Phase][Epoch: %3d/%3d][Iteration: %3d/%3d] Loss: %3.5f' % \
-            #       (epoch + 1, epochs, iter + 1, np.ceil(num_train / batch_size),loss.data[0]))
-        print('[Train Phase][Epoch: %3d/%3d][Loss: %3.5f]' % (epoch+1, epochs, epoch_loss / len(train_loader)), end='')
+        ## end of training batch ##
+        print '[Train Phase][Epoch: %3d/%3d][Loss: %3.5f]' % (epoch+1, epochs, epoch_loss / len(train_loader))
+
         optimizer = AdjustLearningRate(optimizer, epoch, learning_rate)
 
-        l, l1, l2, t1 = Totloss(U, B, Sim, lamda, num_train)
+        l, l1, l2, t1 = Totloss(U_all, B_all, Sim, lamda, num_train)
         totloss_record.append(l)
         totl1_record.append(l1)
         totl2_record.append(l2)
         t1_record.append(t1)
-
-        print('[Total Loss: %10.5f][total L1: %10.5f][total L2: %10.5f][norm theta: %3.5f]' % (l, l1, l2, t1), end='')
+        print '[Total Loss: %10.5f][total L1: %10.5f][total L2: %10.5f][norm theta: %3.5f]' % (l, l1, l2, t1)
 
         ### testing during epoch
         qB = GenerateCode(model, test_loader, num_test, bit, use_gpu)
-        tB = torch.sign(B).numpy()
+        tB = torch.sign(B_all).numpy()
         map_ = CalcHR.CalcMap(qB, tB, test_labels_onehot.numpy(), train_labels_onehot.numpy())
         train_loss.append(epoch_loss / len(train_loader))
         map_record.append(map_)
         
-        file.write(str(train_loss[-1])+'  '+str(map_)+'\n')
-        
+        logfile.write(str(train_loss[-1])+'  '+str(map_)+'\n')
         
         print('[Test Phase ][Epoch: %3d/%3d] MAP(retrieval train): %3.5f' % (epoch+1, epochs, map_))
-        print(len(train_loader))
+        #print(len(train_loader))
+    ## end of training epoch ##
+
     ### evaluation phase
     ## create binary code
     model.eval()
@@ -249,6 +269,7 @@ def DPSH_algo(bit, param, gpu_ind=0):
 
     map = CalcHR.CalcMap(qB, dB, test_labels_onehot.numpy(), database_labels_onehot.numpy())
     print('[Retrieval Phase] MAP(retrieval database): %3.5f' % map)
+    ## end of evaluation ##
 
     result = {}
     result['qB'] = qB
@@ -269,7 +290,7 @@ if __name__=='__main__':
     bit = 12
     lamda = 50
     gpu_ind = 0
-    filename = 'log/DPSH_' + str(bit) + 'bits_NUS-WIDE_' + datetime.now().strftime("%y-%m-%d-%H-%M-%S") + '.pkl'
+    filename = 'snapshots/DPSH_' + str(bit) + 'bits_cifar10_' + datetime.now().strftime("%y-%m-%d-%H-%M-%S") + '.pkl'
     param = {}
     param['lambda'] = lamda
     param['filename'] = filename
@@ -277,4 +298,3 @@ if __name__=='__main__':
     fp = open(result['filename'], 'wb')
     pickle.dump(result, fp)
     fp.close()
-
