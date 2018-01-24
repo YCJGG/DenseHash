@@ -105,9 +105,9 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
     TRAIN_LABEL = 'train_label.txt'
     TEST_LABEL = 'test_label.txt'
 
-    batch_size = 25
+    batch_size = 20
     epochs = 80
-    learning_rate = 0.006
+    learning_rate = 0.01
     weight_decay = 10 ** -5
     model_name = 'vgg16'
     #model_name = 'alexnet'
@@ -228,13 +228,14 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
 	    ave_iter_loss += loss.data[0]
 
 	    if iter%10 == 0:
-		print('[Iteration %d][%3.2fs/iter][Iter Loss: %3.5f]' % (iter, time.time()-iter_timer, ave_iter_loss/10))
+		print('[Iteration %d][%3.2fs/iter][Iter Loss: %3.5f]' % (iter+epoch*len(train_loader), time.time()-iter_timer, ave_iter_loss/10))
 		ave_iter_loss = 0
 
         print('[Train Phase][Epoch: %3d/%3d][Loss: %3.5f]' % (epoch+1, epochs, epoch_loss / len(train_loader)))
         optimizer = AdjustLearningRate(optimizer, epoch, learning_rate)
        
         ### testing during epoch
+	test_timer = time.time()
         qB = GenerateCode(model, test_loader, num_test, bit, use_gpu)
         tB = torch.sign(U).numpy()
         map_ = CalcHR.CalcMap(qB, tB, test_labels_onehot.numpy(), train_labels_onehot.numpy())
@@ -246,11 +247,12 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
         
         
         print('[Test Phase ][Epoch: %3d/%3d] MAP(retrieval train): %3.5f' % (epoch+1, epochs, map_))
-        print(len(train_loader))
+        #print(len(train_loader))
         print('[Test Phase ][Epoch: %3d/%3d] MAP@top500(retrieval train): %3.5f' % (epoch+1, epochs, map_topk))
+	print('[Test time cost: %d]'%(time.time() - test_timer))
         
-        end_time = time.time()
-        print('ptime: %d'%(end_time - start_time))
+        print('[Epoch time cost: %d]'%(time.time() - start_time))
+
         ### evaluation phase
         ## create binary code
         if (epoch + 1)%20 == 0 :    
