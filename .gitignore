@@ -6,10 +6,8 @@
 *.pkl
 
 # model snapshot
-snapshots
 snapshots/*
 
 # logs
 *.log
-logs
-logs/*
+log/*

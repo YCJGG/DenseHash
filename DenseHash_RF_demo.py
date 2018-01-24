@@ -1,8 +1,8 @@
-import DPSH_CIFAR_10 as dpsh
+import DenseHash_RF as dh
 import pickle
 from datetime import datetime
 
-def DPSH_CIFAR_10_demo():
+def DenseHash_RF_demo():
     lamda = 50
     param = {}
     param['lambda'] = lamda
@@ -11,11 +11,11 @@ def DPSH_CIFAR_10_demo():
     bits = [12]
     # bits = [12, 24, 32, 48]
     for bit in bits:
-        filename = 'log/DPSH_' + str(bit) + 'bits_CIFAR-10' + '_' + datetime.now().strftime("%y-%m-%d-%H-%M-%S") + '.pkl'
+        filename = 'snapshot/denseHash_RF_111_' + str(bit) + 'bits_CIFAR_10' + '_' + datetime.now().strftime("%y%m%d_%H%M") + '.pkl'
         param['filename'] = filename
         print('---------------------------------------')
         print('[#bit: %3d]' % (bit))
-        result = dpsh.DPSH_algo(bit, param, gpu_ind)
+        result = dh.DenseHash_RF_algo(bit, param, gpu_ind)
         print('[MAP: %3.5f]' % (result['map']))
         print('---------------------------------------')
         fp = open(result['filename'], 'wb')
@@ -23,4 +23,4 @@ def DPSH_CIFAR_10_demo():
         fp.close()
 
 if __name__=="__main__":
-    DPSH_CIFAR_10_demo()
+    DenseHash_RF_demo()
