@@ -107,7 +107,7 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
 
     batch_size = 20
     epochs = 80
-    learning_rate = 0.01
+    learning_rate = 0.003
     weight_decay = 10 ** -5
     model_name = 'vgg16'
     #model_name = 'alexnet'
@@ -195,6 +195,7 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
         temp1 = temp1.inverse()
         temp1 = temp1.mm(Sim.cuda().t())
         D = temp1.mm(B.cuda())
+
         # B step
         for iter, traindata in enumerate(train_loader, 0):
             train_input, train_label, batch_ind = traindata
@@ -203,7 +204,9 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
             for i, ind in enumerate(batch_ind):
                 U[ind, :] = train_outputs.data[i]
         B = torch.sign(Sim.cuda().mm(D.cuda()) + 1e-5 * U.cuda())
-        #F step
+        print('[Epoch %3d B step time cost: %3.5f]'%(epoch+1, time.time() - start_time))
+
+        # F step
         ## training epoch
 	ave_iter_loss = 0.0
         for iter, traindata in enumerate(train_loader, 0):
@@ -227,8 +230,8 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
             epoch_loss += loss.data[0]
 	    ave_iter_loss += loss.data[0]
 
-	    if iter%10 == 0:
-		print('[Iteration %d][%3.2fs/iter][Iter Loss: %3.5f]' % (iter+epoch*len(train_loader), time.time()-iter_timer, ave_iter_loss/10))
+	    if iter%1 == 0:
+		print('[Iteration %d][%3.2fs/iter][Iter Loss: %3.5f]' % (iter+epoch*len(train_loader), time.time()-iter_timer, ave_iter_loss/1))
 		ave_iter_loss = 0
 
         print('[Train Phase][Epoch: %3d/%3d][Loss: %3.5f]' % (epoch+1, epochs, epoch_loss / len(train_loader)))
@@ -251,7 +254,7 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
         print('[Test Phase ][Epoch: %3d/%3d] MAP@top500(retrieval train): %3.5f' % (epoch+1, epochs, map_topk))
 	print('[Test time cost: %d]'%(time.time() - test_timer))
         
-        print('[Epoch time cost: %d]'%(time.time() - start_time))
+        print('[Epoch %3d time cost: %d]'%(epoch+1, time.time() - start_time))
 
         ### evaluation phase
         ## create binary code
