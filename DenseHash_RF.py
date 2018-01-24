@@ -230,8 +230,8 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
             epoch_loss += loss.data[0]
 	    ave_iter_loss += loss.data[0]
 
-	    if iter%1 == 0:
-		print('[Iteration %d][%3.2fs/iter][Iter Loss: %3.5f]' % (iter+epoch*len(train_loader), time.time()-iter_timer, ave_iter_loss/1))
+	    if iter%10 == 0:
+		print('[Iteration %d][%3.2fs/iter][Iter Loss: %3.5f]' % (iter+epoch*len(train_loader), time.time()-iter_timer, ave_iter_loss/10))
 		ave_iter_loss = 0
 
         print('[Train Phase][Epoch: %3d/%3d][Loss: %3.5f]' % (epoch+1, epochs, epoch_loss / len(train_loader)))
