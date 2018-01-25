@@ -65,8 +65,8 @@ def GenerateCode(model, data_loader, num_data, bit, use_gpu):
     for iter, data in enumerate(data_loader, 0):
         data_input, _, data_ind = data
         if use_gpu:
-            data_input = Variable(data_input.cuda())
-        else: data_input = Variable(data_input)
+            data_input = Variable(data_input.cuda(), volatile=True)
+        else: data_input = Variable(data_input, volatile=True)
         output = model(data_input)
         if use_gpu:
             B[data_ind.numpy(), :] = torch.sign(output.cpu().data).numpy()
@@ -188,6 +188,7 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
     Sim = CalcSim(train_labels_onehot, train_labels_onehot)
     file = open(filename.replace('snapshot/','log/').replace('.pkl','.log'),'a')
     for epoch in range(epochs):
+	model.train()
         start_time = time.time()        
         epoch_loss = 0.0
         # D  step
@@ -204,7 +205,7 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
             for i, ind in enumerate(batch_ind):
                 U[ind, :] = train_outputs.data[i]
         B = torch.sign(Sim.cuda().mm(D.cuda()) + 1e-5 * U.cuda())
-        print('[Epoch %3d B step time cost: %3.5f]'%(epoch+1, time.time() - start_time))
+        print('[Epoch %3d B step time cost: %3.5fs]'%(epoch+1, time.time() - start_time))
 
         # F step
         ## training epoch
@@ -239,6 +240,7 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
        
         ### testing during epoch
 	test_timer = time.time()
+	model.eval()
         qB = GenerateCode(model, test_loader, num_test, bit, use_gpu)
         tB = torch.sign(U).numpy()
         map_ = CalcHR.CalcMap(qB, tB, test_labels_onehot.numpy(), train_labels_onehot.numpy())
@@ -254,7 +256,7 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
         print('[Test Phase ][Epoch: %3d/%3d] MAP@top500(retrieval train): %3.5f' % (epoch+1, epochs, map_topk))
 	print('[Test time cost: %d]'%(time.time() - test_timer))
         
-        print('[Epoch %3d time cost: %d]'%(epoch+1, time.time() - start_time))
+        print('[Epoch %3d time cost: %ds]'%(epoch+1, time.time() - start_time))
 
         ### evaluation phase
         ## create binary code
