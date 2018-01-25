@@ -290,6 +290,7 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
 
     return result
 
+"""
 if __name__=='__main__':
     bit = 12
     lamda = 50
@@ -302,3 +303,4 @@ if __name__=='__main__':
     fp = open(result['filename'], 'wb')
     pickle.dump(result, fp)
     fp.close()
+"""
