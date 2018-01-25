@@ -106,7 +106,7 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
     TEST_LABEL = 'test_label.txt'
 
     batch_size = 20
-    epochs = 80
+    epochs = 40
     learning_rate = 0.003
     weight_decay = 10 ** -5
     model_name = 'vgg16'
@@ -115,6 +115,7 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
     use_gpu = torch.cuda.is_available()
 
     filename = param['filename']
+    print('pkl file name %s'%filename)
 
     lamda = param['lambda']
     param['bit'] = bit
@@ -186,7 +187,7 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
     t1_record = []
 
     Sim = CalcSim(train_labels_onehot, train_labels_onehot)
-    file = open(filename.replace('snapshot/','log/').replace('.pkl','.log'),'a')
+    #file = open(filename.replace('snapshot/','log/').replace('.pkl','.log'),'a')
     for epoch in range(epochs):
 	model.train()
         start_time = time.time()        
@@ -248,7 +249,7 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
         train_loss.append(epoch_loss / len(train_loader))
         map_record.append(map_)
         
-        file.write(str(train_loss[-1])+'  '+str(map_)+'\n')
+        #file.write(str(train_loss[-1])+'  '+str(map_)+'\n')
         
         
         print('[Test Phase ][Epoch: %3d/%3d] MAP(retrieval train): %3.5f' % (epoch+1, epochs, map_))
@@ -260,7 +261,8 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
 
         ### evaluation phase
         ## create binary code
-        if (epoch + 1)%20 == 0 :    
+        if (epoch + 1)%40 == 0 : 
+            eval_timer = time.time()   
             model.eval()
             database_labels = LoadLabel(DATABASE_LABEL, DATA_DIR)
             database_labels_onehot = EncodingOnehot(database_labels, nclasses)
@@ -270,9 +272,8 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
             map = CalcHR.CalcMap(qB, dB, test_labels_onehot.numpy(), database_labels_onehot.numpy())
             print('[Retrieval Phase] MAP(retrieval database): %3.5f' % map)
             map_topk = CalcHR.CalcTopMap(qB,tB,test_labels_onehot.numpy(), train_labels_onehot.numpy(),500)
-            test_time = time.time()
             print('[Retrieval Phase] MAP@500(retrieval database): %3.5f' % map_topk)
-            print('test_time: %d'%(test_time - end_time))
+            print('[Eval time: %ds]'%(time.time() - eval_timer))
 
     result = {}
     result['qB'] = qB
@@ -293,7 +294,7 @@ if __name__=='__main__':
     bit = 12
     lamda = 50
     gpu_ind = 0
-    filename = 'snapshot/denseHash_RF_111_' + str(bit) + 'bits_CIFAR_10_' + datetime.now().strftime("%y%m%d-%H%M") + '.pkl'
+    filename = 'snapshot/denseHash_RF_nop4p5Stride_111_' + str(bit) + 'bits_CIFAR_10_' + datetime.now().strftime("%y%m%d-%H%M") + '.pkl'
     param = {}
     param['lambda'] = lamda
     param['filename'] = filename

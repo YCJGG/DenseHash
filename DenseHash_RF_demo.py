@@ -11,7 +11,7 @@ def DenseHash_RF_demo():
     bits = [12]
     # bits = [12, 24, 32, 48]
     for bit in bits:
-        filename = 'snapshot/denseHash_RF_111_' + str(bit) + 'bits_CIFAR_10' + '_' + datetime.now().strftime("%y%m%d_%H%M") + '.pkl'
+        filename = 'snapshot/denseHash_RF_nop4p5Stride_111_' + str(bit) + 'bits_CIFAR_10' + '_' + datetime.now().strftime("%y%m%d_%H%M") + '.pkl'
         param['filename'] = filename
         print('---------------------------------------')
         print('[#bit: %3d]' % (bit))
