@@ -46,10 +46,10 @@ class VGG(nn.Module):
         self.classifier = nn.Sequential(
             nn.Conv2d(512,4096,7,padding = 3),
             nn.ReLU (True),
-            nn.Dropout(True),
+            nn.Dropout(),
             nn.Conv2d(4096,4096,1),
             nn.ReLU(True),
-            nn.Dropout(True),
+            nn.Dropout(),
             nn.AvgPool2d(28),
         )
 
