@@ -61,6 +61,29 @@ def CalcTopMap(qB, rB, queryL, retrievalL, topk):
     # print('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
     return topkmap
 
+def CalcTopAcc(qB, rB, queryL, retrievalL, topk):
+    # qB: {-1,+1}^{mxq}
+    # rB: {-1,+1}^{nxq}
+    # queryL: {0,1}^{mxl}
+    # retrievalL: {0,1}^{nxl}
+    num_query = queryL.shape[0]
+    topkacc = 0
+    # print('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
+    for iter in range(num_query):
+        gnd = (np.dot(queryL[iter, :], retrievalL.transpose()) > 0).astype(np.float32)
+        hamm = CalcHammingDist(qB[iter, :], rB)
+        ind = np.argsort(hamm)
+        gnd = gnd[ind]
+
+        tgnd = gnd[0:topk]
+        tsum = np.sum(tgnd)
+        if tsum == 0:
+            continue
+        topkacc += tsum / topk
+    topkacc = topkacc / num_query
+    # print('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
+    return topkacc
+
 if __name__=='__main__':
     qB = np.array([[1,-1,1,1],[-1,1,-1,-1],[1,-1,-1,-1]])
     rB = rB = np.array([
