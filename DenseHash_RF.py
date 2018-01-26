@@ -120,6 +120,9 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
     param['epochs'] = epochs
     param['learning rate'] = learning_rate
     param['model'] = model_name
+    print('Solver Settings:')
+    print(param)
+    print('**********************************')
 
     ### data processing
     transformations = transforms.Compose([
@@ -175,14 +178,6 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
     train_labels_onehot = EncodingOnehot(train_labels, nclasses)
     test_labels = LoadLabel(TEST_LABEL, DATA_DIR)
     test_labels_onehot = EncodingOnehot(test_labels, nclasses)
-
-    train_loss = []
-    map_record = []
-
-    totloss_record = []
-    totl1_record = []
-    totl2_record = []
-    t1_record = []
 
     Sim = CalcSim(train_labels_onehot, train_labels_onehot)
     #file = open(filename.replace('snapshot/','log/').replace('.pkl','.log'),'a')
@@ -245,8 +240,6 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
         map_ = CalcHR.CalcMap(qB, tB, test_labels_onehot.numpy(), train_labels_onehot.numpy())
         map_topk = CalcHR.CalcTopMap(qB,tB,test_labels_onehot.numpy(), train_labels_onehot.numpy(),5000)
 	acc_topk = CalcHR.CalcTopAcc(qB, tB, test_labels_onehot.numpy(), train_labels_onehot.numpy(), 5000)
-        train_loss.append(epoch_loss / len(train_loader))
-        map_record.append(map_)
         
         print('[Test Phase ][Epoch: %3d/%3d] MAP(retrieval train): %3.5f' % (epoch+1, epochs, map_))
         print('[Test Phase ][Epoch: %3d/%3d] MAP@top5000(retrieval train): %3.5f' % (epoch+1, epochs, map_topk))
@@ -273,18 +266,13 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
             print('[Retrieval Phase] Precision@5000(retrieval database): %3.5f' % acc_topk)
             print('[Eval time: %ds]'%(time.time() - eval_timer))
 
+    ## save trained model
+    torch.save(model.state_dict(), filename)
+
     result = {}
     result['qB'] = qB
     result['dB'] = dB
-    result['train loss'] = train_loss
-    result['map record'] = map_record
     result['map'] = map
-    result['param'] = param
-    result['total loss'] = totloss_record
-    result['l1 loss'] = totl1_record
-    result['l2 loss'] = totl2_record
-    result['norm theta'] = t1_record
-    result['filename'] = filename
 
     return result
 

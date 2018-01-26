@@ -18,9 +18,9 @@ def DenseHash_RF_demo():
         result = dh.DenseHash_RF_algo(bit, param, gpu_ind)
         print('[MAP: %3.5f]' % (result['map']))
         print('---------------------------------------')
-        fp = open(result['filename'], 'wb')
-        pickle.dump(result, fp)
-        fp.close()
+        #fp = open(result['filename'], 'wb')
+        #pickle.dump(result, fp)
+        #fp.close()
 
 if __name__=="__main__":
     DenseHash_RF_demo()

@@ -112,7 +112,9 @@ if __name__=='__main__':
     topk = 5
     map = CalcMap(qB, rB, queryL, retrievalL)
     topkmap = CalcTopMap(qB, rB, queryL, retrievalL, topk)
+    topkacc = CalcTopAcc(qB, rB, queryL, retrievalL, topk)
     print(map)
     print(topkmap)
+    print(topkacc)
 
 
