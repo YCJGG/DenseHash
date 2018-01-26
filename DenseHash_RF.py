@@ -120,9 +120,9 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
     param['epochs'] = epochs
     param['learning rate'] = learning_rate
     param['model'] = model_name
+    print('**********************************')
     print('Solver Settings:')
     print(param)
-    print('**********************************')
 
     ### data processing
     transformations = transforms.Compose([
@@ -237,13 +237,17 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
 	model.eval()
         qB = GenerateCode(model, test_loader, num_test, bit, use_gpu)
         tB = torch.sign(U).numpy()
+
         map_ = CalcHR.CalcMap(qB, tB, test_labels_onehot.numpy(), train_labels_onehot.numpy())
-        map_topk = CalcHR.CalcTopMap(qB,tB,test_labels_onehot.numpy(), train_labels_onehot.numpy(),5000)
-	acc_topk = CalcHR.CalcTopAcc(qB, tB, test_labels_onehot.numpy(), train_labels_onehot.numpy(), 5000)
-        
         print('[Test Phase ][Epoch: %3d/%3d] MAP(retrieval train): %3.5f' % (epoch+1, epochs, map_))
-        print('[Test Phase ][Epoch: %3d/%3d] MAP@top5000(retrieval train): %3.5f' % (epoch+1, epochs, map_topk))
-        print('[Test Phase ][Epoch: %3d/%3d] Precision@top5000(retrieval train): %3.5f' % (epoch+1, epochs, acc_topk))
+        map_topk = CalcHR.CalcTopMap(qB,tB,test_labels_onehot.numpy(), train_labels_onehot.numpy(),50)
+        print('[Test Phase ][Epoch: %3d/%3d] MAP@top50(retrieval train): %3.5f' % (epoch+1, epochs, map_topk))
+        map_topk = CalcHR.CalcTopMap(qB,tB,test_labels_onehot.numpy(), train_labels_onehot.numpy(),500)
+        print('[Test Phase ][Epoch: %3d/%3d] MAP@top500(retrieval train): %3.5f' % (epoch+1, epochs, map_topk))
+	acc_topk = CalcHR.CalcTopAcc(qB, tB, test_labels_onehot.numpy(), train_labels_onehot.numpy(), 50)
+        print('[Test Phase ][Epoch: %3d/%3d] Precision@top50(retrieval train): %3.5f' % (epoch+1, epochs, acc_topk))
+	acc_topk = CalcHR.CalcTopAcc(qB, tB, test_labels_onehot.numpy(), train_labels_onehot.numpy(), 500)
+        print('[Test Phase ][Epoch: %3d/%3d] Precision@top500(retrieval train): %3.5f' % (epoch+1, epochs, acc_topk))
 	print('[Test time cost: %d]'%(time.time() - test_timer))
         
         print('[Epoch %3d time cost: %ds]'%(epoch+1, time.time() - start_time))
@@ -260,9 +264,13 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
 
             map = CalcHR.CalcMap(qB, dB, test_labels_onehot.numpy(), database_labels_onehot.numpy())
             print('[Retrieval Phase] MAP(retrieval database): %3.5f' % map)
-            map_topk = CalcHR.CalcTopMap(qB, tB, test_labels_onehot.numpy(), train_labels_onehot.numpy(), 5000)
+            map_topk = CalcHR.CalcTopMap(qB, dB, test_labels_onehot.numpy(), train_labels_onehot.numpy(), 500)
+            print('[Retrieval Phase] MAP@500(retrieval database): %3.5f' % map_topk)
+            map_topk = CalcHR.CalcTopMap(qB, dB, test_labels_onehot.numpy(), train_labels_onehot.numpy(), 5000)
             print('[Retrieval Phase] MAP@5000(retrieval database): %3.5f' % map_topk)
-	    acc_topk = CalcHR.CalcTopAcc(qB, tB, test_labels_onehot.numpy(), train_labels_onehot.numpy(), 5000)
+	    acc_topk = CalcHR.CalcTopAcc(qB, dB, test_labels_onehot.numpy(), train_labels_onehot.numpy(), 500)
+            print('[Retrieval Phase] Precision@500(retrieval database): %3.5f' % acc_topk)
+	    acc_topk = CalcHR.CalcTopAcc(qB, dB, test_labels_onehot.numpy(), train_labels_onehot.numpy(), 5000)
             print('[Retrieval Phase] Precision@5000(retrieval database): %3.5f' % acc_topk)
             print('[Eval time: %ds]'%(time.time() - eval_timer))
 

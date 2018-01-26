@@ -79,7 +79,7 @@ def CalcTopAcc(qB, rB, queryL, retrievalL, topk):
         tsum = np.sum(tgnd)
         if tsum == 0:
             continue
-        topkacc += tsum / topk
+        topkacc += float(tsum) / topk
     topkacc = topkacc / num_query
     # print('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
     return topkacc
