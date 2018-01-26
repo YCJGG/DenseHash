@@ -264,13 +264,13 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
 
             map = CalcHR.CalcMap(qB, dB, test_labels_onehot.numpy(), database_labels_onehot.numpy())
             print('[Retrieval Phase] MAP(retrieval database): %3.5f' % map)
-            map_topk = CalcHR.CalcTopMap(qB, dB, test_labels_onehot.numpy(), train_labels_onehot.numpy(), 500)
+            map_topk = CalcHR.CalcTopMap(qB, dB, test_labels_onehot.numpy(), database_labels_onehot.numpy(), 500)
             print('[Retrieval Phase] MAP@500(retrieval database): %3.5f' % map_topk)
-            map_topk = CalcHR.CalcTopMap(qB, dB, test_labels_onehot.numpy(), train_labels_onehot.numpy(), 5000)
+            map_topk = CalcHR.CalcTopMap(qB, dB, test_labels_onehot.numpy(), database_labels_onehot.numpy(), 5000)
             print('[Retrieval Phase] MAP@5000(retrieval database): %3.5f' % map_topk)
-	    acc_topk = CalcHR.CalcTopAcc(qB, dB, test_labels_onehot.numpy(), train_labels_onehot.numpy(), 500)
+	    acc_topk = CalcHR.CalcTopAcc(qB, dB, test_labels_onehot.numpy(), database_labels_onehot.numpy(), 500)
             print('[Retrieval Phase] Precision@500(retrieval database): %3.5f' % acc_topk)
-	    acc_topk = CalcHR.CalcTopAcc(qB, dB, test_labels_onehot.numpy(), train_labels_onehot.numpy(), 5000)
+	    acc_topk = CalcHR.CalcTopAcc(qB, dB, test_labels_onehot.numpy(), database_labels_onehot.numpy(), 5000)
             print('[Retrieval Phase] Precision@5000(retrieval database): %3.5f' % acc_topk)
             print('[Eval time: %ds]'%(time.time() - eval_timer))
 
