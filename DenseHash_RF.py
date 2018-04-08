@@ -65,36 +65,22 @@ def GenerateCode(model, data_loader, num_data, bit, use_gpu):
         if use_gpu:
             data_input = Variable(data_input.cuda(), volatile=True)
         else: data_input = Variable(data_input, volatile=True)
-        output = model(data_input)
+        output,f = model(data_input)
         if use_gpu:
             B[data_ind.numpy(), :] = torch.sign(output.cpu().data).numpy()
         else:
             B[data_ind.numpy(), :] = torch.sign(output.data).numpy()
-    return B
-
-def Logtrick(x, use_gpu):
-    if use_gpu:
-        lt = torch.log(1+torch.exp(-torch.abs(x))) + torch.max(x, Variable(torch.FloatTensor([0.]).cuda()))
-    else:
-        lt = torch.log(1+torch.exp(-torch.abs(x))) + torch.max(x, Variable(torch.FloatTensor([0.])))
-    return lt
-def Totloss(U, B, Sim, lamda, num_train):
-    theta = U.mm(U.t()) / 2
-    t1 = (theta*theta).sum() / (num_train * num_train)
-    l1 = (- theta * Sim + Logtrick(Variable(theta), False).data).sum()
-    l2 = (U - B).pow(2).sum()
-    l = l1 + lamda * l2
-    return l, l1, l2, t1
+    return B,f
 
 def DenseHash_RF_algo(bit, param, gpu_ind=0):
     # parameters setting
     #os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_indi)
 
     #os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
 
     #DATA_DIR = 'data/CIFAR-10'
-    DATA_DIR = '/home/kfxw/Development/data/Retrieval/cifar10_retrieval'
+    DATA_DIR = '/home/zhangjingyi/res/DPSH-pytorch/data/CIFAR-10'
     DATABASE_FILE = 'database_img.txt'
     TRAIN_FILE = 'train_img.txt'
     TEST_FILE = 'test_img.txt'
@@ -103,7 +89,7 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
     TRAIN_LABEL = 'train_label.txt'
     TEST_LABEL = 'test_label.txt'
 
-    batch_size = 20
+    batch_size = 64
     epochs = 40
     learning_rate = 0.003
     weight_decay = 10 ** -5
@@ -127,7 +113,7 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
     ### data processing
     transformations = transforms.Compose([
         transforms.Scale(256),
-        transforms.CenterCrop(224),
+        #transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
@@ -178,27 +164,23 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
     train_labels_onehot = EncodingOnehot(train_labels, nclasses)
     test_labels = LoadLabel(TEST_LABEL, DATA_DIR)
     test_labels_onehot = EncodingOnehot(test_labels, nclasses)
-
-    Sim = CalcSim(train_labels_onehot, train_labels_onehot)
+    
+    Y = train_labels_onehot
+    #Sim = CalcSim(train_labels_onehot, train_labels_onehot)
     #file = open(filename.replace('snapshot/','log/').replace('.pkl','.log'),'a')
     for epoch in range(epochs):
 	model.train()
         start_time = time.time()        
         epoch_loss = 0.0
         # D  step
-        temp1 = Sim.cuda().t().mm(Sim.cuda())+ torch.eye(num_train).cuda()
+        temp1 = Y.t().mm(Y)+ torch.eye(nclasses)
         temp1 = temp1.inverse()
-        temp1 = temp1.mm(Sim.cuda().t())
-        D = temp1.mm(B.cuda())
+        temp1 = temp1.mm(Y.t())
+        D = temp1.mm(B)
 
         # B step
-        for iter, traindata in enumerate(train_loader, 0):
-            train_input, train_label, batch_ind = traindata
-            train_input = Variable(train_input.cuda())
-            train_outputs = model(train_input)
-            for i, ind in enumerate(batch_ind):
-                U[ind, :] = train_outputs.data[i]
-        B = torch.sign(Sim.cuda().mm(D.cuda()) + 1e-5 * U.cuda())
+  
+        B = torch.sign(Y.mm(D) + 1e-5 * U)
         print('[Epoch %3d B step time cost: %3.5fs]'%(epoch+1, time.time() - start_time))
 
         # F step
@@ -209,15 +191,17 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
             train_input, train_label, batch_ind = traindata
             train_input = Variable(train_input.cuda()) 
             model.zero_grad()
-            train_outputs = model(train_input)
+            train_outputs,f = model(train_input)
+            #print(train_outputs.size())
 
             temp = torch.zeros(train_outputs.data.size())
             for i, ind in enumerate(batch_ind):
                 temp[i,:] = B[ind, :]
+                U[ind, :] = train_outputs.data[i]
             
             temp = Variable(temp.cuda())
             
-            loss = (temp - train_outputs).pow(2).sum()/(batch_size**2)
+            loss = (temp - train_outputs).pow(2).sum()/(batch_size)
 
            
             loss.backward()
@@ -235,9 +219,10 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
         ### testing during epoch
 	test_timer = time.time()
 	model.eval()
-        qB = GenerateCode(model, test_loader, num_test, bit, use_gpu)
+        qB,f = GenerateCode(model, test_loader, num_test, bit, use_gpu)
         tB = torch.sign(U).numpy()
-
+        f = f.cpu().data.numpy()
+        np.save('f.npy',f)
         map_ = CalcHR.CalcMap(qB, tB, test_labels_onehot.numpy(), train_labels_onehot.numpy())
         print('[Test Phase ][Epoch: %3d/%3d] MAP(retrieval train): %3.5f' % (epoch+1, epochs, map_))
         map_topk = CalcHR.CalcTopMap(qB,tB,test_labels_onehot.numpy(), train_labels_onehot.numpy(),50)

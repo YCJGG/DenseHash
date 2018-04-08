@@ -23,7 +23,7 @@ class cnn_model(nn.Module):
             self.classifier = net.classifier
             # newly initialized output layer
             self.classifier2 = nn.Sequential(
-                nn.Linear(4096,bit)   
+                nn.Conv2d(4096,bit,1)   
             )
 
             self.model_name = 'vgg16'           
@@ -32,10 +32,10 @@ class cnn_model(nn.Module):
 
     def forward(self, x):
         f = self.features(x)
-        f = self.classifier(f)
-        f = f.view(f.size(0),-1)
-        y = self.classifier2(f)
-        return y
+        ff = self.classifier2(f)
+        y = self.classifier(ff)
+        y = y.view(y.size(0),-1)
+        return y,ff
 
 if __name__=="__main__":
     pass

@@ -35,22 +35,23 @@ class VGG(nn.Module):
             nn.MaxPool2d(3, stride=1, padding = 1),
 
 	    # conv5
-            nn.Conv2d(512,512,3, padding=1),
+            nn.Conv2d(512,512,3, padding= 3, dilation = 3),
             nn.ReLU(inplace=True),
-            nn.Conv2d(512,512,3, padding=1),
+            nn.Conv2d(512,512,3, padding= 4, dilation = 4),
             nn.ReLU(inplace=True),
-            nn.Conv2d(512,512,3, padding=1),#,dilation=2),
+            nn.Conv2d(512,512,3, padding= 5, dilation= 5),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(3, stride=1,padding = 1),
-        )
-        self.classifier = nn.Sequential(
             nn.Conv2d(512,4096,7,padding = 3),
             nn.ReLU (True),
             nn.Dropout(),
             nn.Conv2d(4096,4096,1),
             nn.ReLU(True),
             nn.Dropout(),
-            nn.AvgPool2d(28),
+        )
+        self.classifier = nn.Sequential(
+            
+            nn.AvgPool2d(32),
         )
 
     def forward(self, x):
