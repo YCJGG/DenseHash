@@ -90,7 +90,7 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
     TEST_LABEL = 'test_label.txt'
 
     batch_size = 64
-    epochs = 40
+    epochs = 30
     learning_rate = 0.003
     weight_decay = 10 ** -5
     model_name = 'vgg16'
@@ -239,13 +239,13 @@ def DenseHash_RF_algo(bit, param, gpu_ind=0):
 
         ### evaluation phase
         ## create binary code
-        if (epoch + 1)%40 == 0 : 
+        if (epoch + 1)%epochs == 0 : 
             eval_timer = time.time()   
             model.eval()
             database_labels = LoadLabel(DATABASE_LABEL, DATA_DIR)
             database_labels_onehot = EncodingOnehot(database_labels, nclasses)
-            qB = GenerateCode(model, test_loader, num_test, bit, use_gpu)
-            dB = GenerateCode(model, database_loader, num_database, bit, use_gpu)
+            qB,_ = GenerateCode(model, test_loader, num_test, bit, use_gpu)
+            dB,_ = GenerateCode(model, database_loader, num_database, bit, use_gpu)
 
             map = CalcHR.CalcMap(qB, dB, test_labels_onehot.numpy(), database_labels_onehot.numpy())
             print('[Retrieval Phase] MAP(retrieval database): %3.5f' % map)
